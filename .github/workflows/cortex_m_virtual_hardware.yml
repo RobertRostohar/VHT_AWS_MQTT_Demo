@@ -1,0 +1,41 @@
+name: Cortex-M7 Arm Virtual Hardware
+
+# https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#onschedule
+on:
+  # Allow manually triggering of the workflow.
+  workflow_dispatch: {}
+
+jobs:
+  cortex_m_generic:
+    runs-on: ubuntu-latest
+      
+    name: Cortex-M7 Virtual Hardware Target
+    steps:
+      - uses: actions/checkout@v2    
+      - name: Prepare test suite
+        run: 
+          rsync -rR . ./vht
+      - name: Execute test suite on Virtual Hardware at AWS
+        uses: Arm-Software/VHT-AMI@v2
+        with:
+          vht_in: ./vht
+          s3_bucket_name:  ${{ secrets.AWS_S3_BUCKET }}
+          ec2_instance_type: t2.xlarge
+          ec2_security_group_id: ${{ secrets.AWS_EC2_SECURITY_GROUP_ID }}
+          iam_profile: ${{ secrets.AWS_IAM_PROFILE }}
+          subnet_id: ${{ secrets.AWS_SUBNET_ID }}
+          terminate_ec2_instance: 'true'
+          vht_ami_version: '1.1.0'
+          
+        env: 
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_SECRET }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          
+      - name: Fetch results from VHT
+        run: |
+          tar xvzf out.tar
+          cat ./home/ubuntu/vhtwork/out/image.axf.stdio
+          grep -il "Incoming Publish Message : Hello World!" ./home/ubuntu/vhtwork/out/image.axf.stdio
+          
+    
